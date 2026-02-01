@@ -2,1158 +2,745 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="color-scheme" content="light dark">
-    <title>快捷视频通话 - 修复版</title>
-    
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, onValue, remove, push, child, get, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-        
-        // 使用更稳定的公共配置（如果失效请更换）
-        const firebaseConfig = {
-            apiKey: "AIzaSyBNt63J3fHYHigJTFI5RqRoct7DxB9pK1o",
-            authDomain: "webrtc-video-demo-2024.firebaseapp.com",
-            databaseURL: "https://webrtc-video-demo-2024-default-rtdb.firebaseio.com",
-            projectId: "webrtc-video-demo-2024",
-            storageBucket: "webrtc-video-demo-2024.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef123456789"
-        };
-        
-        try {
-            window.firebaseApp = initializeApp(firebaseConfig);
-            window.db = getDatabase(window.firebaseApp);
-            window.dbRef = ref;
-            window.dbSet = set;
-            window.dbOnValue = onValue;
-            window.dbRemove = remove;
-            window.dbPush = push;
-            window.dbGet = get;
-            window.dbChild = child;
-            window.dbOnDisconnect = onDisconnect;
-            console.log('[Firebase] 初始化成功');
-        } catch (e) {
-            console.error('[Firebase] 初始化失败:', e);
-            alert('Firebase初始化失败，请检查网络连接');
-        }
-    </script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易视频通话</title>
     <style>
-        :root {
-            --wx-green: #07C160;
-            --wx-green-dark: #06ad56;
-            --wx-bg: #EDEDED;
-            --wx-white: #FFFFFF;
-            --wx-text: #000000;
-            --wx-text-gray: #999999;
-            --wx-border: #E5E5E5;
-            --safe-top: env(safe-area-inset-top, 0px);
-            --safe-bottom: env(safe-area-inset-bottom, 20px);
-        }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --wx-bg: #111111;
-                --wx-white: #1e1e1e;
-                --wx-text: #ffffff;
-                --wx-border: #2c2c2c;
-            }
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
         }
-
-        html, body {
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            position: fixed;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--wx-bg);
-            color: var(--wx-text);
-        }
-
-        .app-container {
-            height: 100%;
-            height: 100dvh;
-            width: 100%;
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        .page {
-            display: none;
-            flex: 1;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .page.active {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .nav-bar {
-            flex-shrink: 0;
-            background: var(--wx-bg);
-            border-bottom: 0.5px solid var(--wx-border);
-            padding: 12px 16px;
-            padding-top: max(12px, var(--safe-top));
-            display: flex;
-            align-items: center;
             justify-content: center;
-            min-height: 56px;
-            position: relative;
+            align-items: center;
+            padding: 20px;
         }
-
-        .nav-title {
-            font-size: 17px;
-            font-weight: 600;
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 1200px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
         }
-
-        .nav-btn {
-            position: absolute;
-            left: 8px;
-            background: none;
-            border: none;
-            padding: 8px;
-            font-size: 16px;
-            color: var(--wx-text);
-            cursor: pointer;
+        
+        .header {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
         }
-
-        .home-content {
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .main-content {
+            display: flex;
             flex: 1;
             padding: 20px;
+            gap: 20px;
+        }
+        
+        .control-panel {
+            flex: 1;
+            min-width: 300px;
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
             display: flex;
             flex-direction: column;
             gap: 20px;
-            overflow-y: auto;
-            padding-bottom: calc(20px + var(--safe-bottom));
         }
-
-        .mode-card {
-            background: var(--wx-white);
-            border-radius: 16px;
-            padding: 24px;
-            text-align: center;
-            border: 1px solid var(--wx-border);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .mode-card:active {
-            transform: scale(0.98);
-            background: #f5f5f5;
-        }
-
-        .mode-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-        }
-
-        .mode-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .mode-desc {
-            font-size: 14px;
-            color: var(--wx-text-gray);
-            line-height: 1.4;
-        }
-
-        .code-section {
-            background: var(--wx-white);
-            border-radius: 16px;
-            padding: 32px 24px;
-            margin: 20px;
-            text-align: center;
-            border: 1px solid var(--wx-border);
-        }
-
-        .code-label {
-            font-size: 14px;
-            color: var(--wx-text-gray);
-            margin-bottom: 16px;
-            display: block;
-        }
-
-        .code-display {
-            font-size: 48px;
-            font-weight: bold;
-            color: var(--wx-green);
-            letter-spacing: 8px;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-            user-select: all;
-        }
-
-        .code-input-group {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .code-input {
-            width: 48px;
-            height: 56px;
-            border: 2px solid var(--wx-border);
-            border-radius: 12px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            background: var(--wx-bg);
-            outline: none;
-            transition: all 0.2s;
-            caret-color: var(--wx-green);
-        }
-
-        .code-input:focus {
-            border-color: var(--wx-green);
-            background: var(--wx-white);
-            transform: scale(1.05);
-        }
-
-        .action-btn {
-            background: var(--wx-green);
-            color: white;
-            border: none;
-            padding: 14px 32px;
-            border-radius: 24px;
-            font-size: 17px;
-            font-weight: 500;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 16px;
-            transition: all 0.2s;
-            min-height: 48px;
-        }
-
-        .action-btn:active {
-            transform: scale(0.96);
-            background: var(--wx-green-dark);
-        }
-
-        .action-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .secondary-btn {
-            background: transparent;
-            color: var(--wx-text-gray);
-            border: 1px solid var(--wx-border);
-            margin-top: 12px;
-        }
-
-        .preview-container {
-            flex: 1;
-            position: relative;
-            background: #000;
-            overflow: hidden;
-        }
-
-        #localPreview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-        }
-
-        .waiting-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            gap: 16px;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top-color: var(--wx-green);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .call-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            height: 100dvh;
-            background: #000;
-            z-index: 1000;
-            display: none;
-            flex-direction: column;
-        }
-
-        .call-overlay.active {
-            display: flex;
-        }
-
-        .call-header {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 16px;
-            padding-top: max(16px, var(--safe-top));
-            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
-            z-index: 10;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .call-info {
-            color: white;
-        }
-
-        .call-peer-name {
-            font-size: 18px;
-            font-weight: 500;
-        }
-
-        .call-status {
-            font-size: 13px;
-            opacity: 0.9;
-            margin-top: 2px;
-        }
-
-        .call-timer {
-            font-size: 14px;
-            font-family: monospace;
-            background: rgba(0,0,0,0.4);
-            padding: 4px 8px;
-            border-radius: 12px;
-        }
-
+        
         .video-container {
-            flex: 1;
-            position: relative;
-            background: #1a1a1a;
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 500px;
         }
-
-        #remoteVideo {
+        
+        .video-wrapper {
+            flex: 1;
+            background: #1e293b;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            min-height: 300px;
+        }
+        
+        #localVideo, #remoteVideo {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-
-        #localVideo {
+        
+        .video-label {
             position: absolute;
-            top: 80px;
-            right: 16px;
-            width: 120px;
-            height: 160px;
-            object-fit: cover;
-            border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.3);
-            background: #333;
-            z-index: 5;
-            transform: scaleX(-1);
-        }
-
-        .call-controls {
-            padding: 24px 32px;
-            padding-bottom: max(32px, var(--safe-bottom));
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            gap: 20px;
-        }
-
-        .control-btn {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            border: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
             color: white;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
-        }
-
-        .control-btn:active {
-            transform: scale(0.9);
-        }
-
-        .control-btn .icon {
-            font-size: 28px;
-        }
-
-        .control-btn.end {
-            background: #ff4d4f;
-            width: 72px;
-            height: 72px;
-        }
-
-        .control-btn.end .icon {
-            font-size: 32px;
-        }
-
-        .control-btn.active {
-            background: rgba(255,255,255,0.4);
-        }
-
-        .toast {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.9);
-            background: rgba(0,0,0,0.85);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-size: 15px;
-            z-index: 2000;
-            opacity: 0;
-            transition: all 0.3s;
-            pointer-events: none;
-            text-align: center;
-            max-width: 80%;
-            line-height: 1.5;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            background: rgba(7, 193, 96, 0.1);
-            color: var(--wx-green);
-            border-radius: 16px;
+            padding: 5px 10px;
+            border-radius: 5px;
             font-size: 14px;
-            margin-top: 12px;
+        }
+        
+        .panel-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            color: #4f46e5;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title i {
+            font-size: 20px;
+        }
+        
+        .code-display {
+            background: linear-gradient(45deg, #f0f9ff, #e0f2fe);
+            border: 2px dashed #38bdf8;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 5px;
+            color: #0c4a6e;
+            margin: 10px 0;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
             font-weight: 500;
         }
-
-        .status-badge.waiting::before {
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: var(--wx-green);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
+        
+        .input-with-button {
+            display: flex;
+            gap: 10px;
         }
-
-        .status-badge.error {
-            background: rgba(255, 77, 79, 0.1);
-            color: #ff4d4f;
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
         }
-
-        .status-badge.error::before {
-            background: #ff4d4f;
-            animation: none;
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4f46e5;
         }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5;        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-
-        .debug-info {
-            margin-top: 12px;
-            padding: 8px;
-            background: #f5f5f5;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #666;
-            font-family: monospace;
-            display: none;
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
         }
-
-        .hidden { display: none !important; }
-
-        @media (min-width: 768px) {
-            .app-container {
-                max-width: 480px;
-                margin: 0 auto;
-                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(90deg, #10b981, #34d399);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        
+        .call-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .status-connecting {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .device-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .icon {
+            font-size: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .video-container, .control-panel {
+                min-width: 100%;
             }
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-
-    <div class="app-container">
-        <div class="toast" id="toast"></div>
-
-        <!-- 页面1: 主页 -->
-        <div class="page active" id="homePage">
-            <div class="nav-bar">
-                <div class="nav-title">视频通话</div>
-            </div>
-            
-            <div class="home-content">
-                <div class="mode-card" onclick="showCreatePage()">
-                    <div class="mode-icon">📱</div>
-                    <div class="mode-title">发起通话</div>
-                    <div class="mode-desc">生成6位验证码，等待对方加入</div>
-                </div>
-
-                <div class="mode-card" onclick="showJoinPage()">
-                    <div class="mode-icon">🔢</div>
-                    <div class="mode-title">加入通话</div>
-                    <div class="mode-desc">输入对方提供的6位验证码</div>
-                </div>
-
-                <div style="margin-top: auto; text-align: center; padding: 20px; font-size: 12px; color: var(--wx-text-gray);">
-                    <p>ver 2.1 - 修复连接问题</p>
-                </div>
-            </div>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-video"></i> 简易视频通话</h1>
+            <p>跨WiFi直接连接，输入验证码即可通话</p>
         </div>
-
-        <!-- 页面2: 创建房间 -->
-        <div class="page" id="createPage">
-            <div class="nav-bar">
-                <button class="nav-btn" onclick="backToHome()">‹</button>
-                <div class="nav-title">发起通话</div>
-            </div>
-            
-            <div class="preview-container">
-                <video id="localPreview" autoplay playsinline muted></video>
-                <div class="waiting-overlay" id="waitingOverlay">
-                    <div class="spinner"></div>
-                    <div>正在准备摄像头...</div>
-                </div>
-            </div>
-
-            <div class="code-section">
-                <span class="code-label">您的验证码</span>
-                <div class="code-display" id="roomCode" onclick="copyCode()">------</div>
-                
-                <div class="status-badge waiting" id="createStatus">
-                    等待对方加入...
-                </div>
-                
-                <div class="debug-info" id="createDebug"></div>
-                
-                <button class="action-btn" onclick="copyCode()">复制验证码</button>
-                <button class="action-btn secondary-btn" onclick="cancelCall()">取消</button>
-            </div>
-        </div>
-
-        <!-- 页面3: 加入房间 -->
-        <div class="page" id="joinPage">
-            <div class="nav-bar">
-                <button class="nav-btn" onclick="backToHome()">‹</button>
-                <div class="nav-title">加入通话</div>
-            </div>
-            
-            <div class="home-content" style="justify-content: center;">
-                <div class="code-section" style="margin: 0;">
-                    <span class="code-label">输入6位验证码</span>
-                    
-                    <div class="code-input-group">
-                        <input type="number" pattern="[0-9]*" inputmode="numeric" class="code-input" maxlength="1" data-index="0" oninput="handleInput(this, 0)" onkeydown="handleKeyDown(event, 0)" onfocus="this.select()">
-                        <input type="number" pattern="[0-9]*" inputmode="numeric" class="code-input" maxlength="1" data-index="1" oninput="handleInput(this, 1)" onkeydown="handleKeyDown(event, 1)" onfocus="this.select()">
-                        <input type="number" pattern="[0-9]*" inputmode="numeric" class="code-input" maxlength="1" data-index="2" oninput="handleInput(this, 2)" onkeydown="handleKeyDown(event, 2)" onfocus="this.select()">
-                        <input type="number" pattern="[0-9]*" inputmode="numeric" class="code-input" maxlength="1" data-index="3" oninput="handleInput(this, 3)" onkeydown="handleKeyDown(event, 3)" onfocus="this.select()">
-                        <input type="number" pattern="[0-9]*" inputmode="numeric" class="code-input" maxlength="1" data-index="4" oninput="handleInput(this, 4)" onkeydown="handleKeyDown(event, 4)" onfocus="this.select()">
-                        <input type="number" pattern="[0-9]*" inputmode="numeric" class="code-input" maxlength="1" data-index="5" oninput="handleInput(this, 5)" onkeydown="handleKeyDown(event, 5)" onfocus="this.select()">
+        
+        <div class="main-content">
+            <div class="control-panel">
+                <div class="panel-section">
+                    <div class="section-title">
+                        <i class="fas fa-user-plus"></i>
+                        <span>我的验证码</span>
                     </div>
-
-                    <div class="status-badge error hidden" id="joinError">
-                        连接失败，请检查验证码
+                    <div class="code-display" id="myCode">生成中...</div>
+                    <div class="input-group">
+                        <label><i class="fas fa-key"></i> 输入对方验证码连接</label>
+                        <div class="input-with-button">
+                            <input type="text" id="peerCode" placeholder="输入6位验证码" maxlength="6">
+                            <button class="btn btn-primary" id="connectBtn">
+                                <i class="fas fa-plug"></i> 连接
+                            </button>
+                        </div>
                     </div>
-
-                    <button class="action-btn" onclick="joinRoom()" id="joinBtn">加入通话</button>
-                    <button class="action-btn secondary-btn" onclick="backToHome()">取消</button>
-                    
-                    <div class="debug-info" id="joinDebug"></div>
+                </div>
+                
+                <div class="panel-section">
+                    <div class="section-title">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>设备设置</span>
+                    </div>
+                    <div class="input-group">
+                        <label>摄像头</label>
+                        <select class="device-select" id="cameraSelect"></select>
+                    </div>
+                    <div class="input-group">
+                        <label>麦克风</label>
+                        <select class="device-select" id="micSelect"></select>
+                    </div>
+                    <div class="call-controls">
+                        <button class="btn btn-secondary" id="refreshDevices">
+                            <i class="fas fa-redo"></i> 刷新设备
+                        </button>
+                        <button class="btn btn-primary" id="toggleAudio">
+                            <i class="fas fa-microphone"></i> 静音
+                        </button>
+                        <button class="btn btn-primary" id="toggleVideo">
+                            <i class="fas fa-video"></i> 关闭视频
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <div class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        <span>连接状态</span>
+                    </div>
+                    <div class="status" id="connectionStatus">
+                        等待连接...
+                    </div>
+                    <div class="call-controls">
+                        <button class="btn btn-success" id="callBtn" disabled>
+                            <i class="fas fa-phone"></i> 开始通话
+                        </button>
+                        <button class="btn btn-danger" id="hangupBtn" disabled>
+                            <i class="fas fa-phone-slash"></i> 挂断
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- 页面4: 视频通话 -->
-        <div class="call-overlay" id="callPage">
-            <div class="call-header">
-                <div class="call-info">
-                    <div class="call-peer-name">对方</div>
-                    <div class="call-status" id="callStatus">正在连接...</div>
-                </div>
-                <div class="call-timer" id="callTimer">00:00</div>
-            </div>
-
+            
             <div class="video-container">
-                <video id="remoteVideo" autoplay playsinline></video>
-                <video id="localVideo" autoplay playsinline muted></video>
-            </div>
-
-            <div class="call-controls">
-                <button class="control-btn" id="muteBtn" onclick="toggleMute()">
-                    <span class="icon">🎤</span>
-                    <span>静音</span>
-                </button>
-                <button class="control-btn end" onclick="endCall()">
-                    <span class="icon">📞</span>
-                </button>
+                <div class="video-wrapper">
+                    <video id="localVideo" autoplay muted playsinline></video>
+                    <div class="video-label">本地视频</div>
+                </div>
+                <div class="video-wrapper">
+                    <video id="remoteVideo" autoplay playsinline></video>
+                    <div class="video-label">远程视频</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script type="module">
-        const rtcConfig = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                {
-                    urls: 'turn:openrelay.metered.ca:80',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                }
-            ],
-            iceCandidatePoolSize: 10
-        };
-
-        let pc = null;
-        let localStream = null;
-        let currentRoom = null;
-        let isCaller = false;
-        let callTimer = null;
-        let callSeconds = 0;
-        let roomRef = null;
-        let unsubscribeList = [];
-
-        const els = {
-            homePage: document.getElementById('homePage'),
-            createPage: document.getElementById('createPage'),
-            joinPage: document.getElementById('joinPage'),
-            callPage: document.getElementById('callPage'),
-            roomCode: document.getElementById('roomCode'),
-            localPreview: document.getElementById('localPreview'),
-            localVideo: document.getElementById('localVideo'),
-            remoteVideo: document.getElementById('remoteVideo'),
-            waitingOverlay: document.getElementById('waitingOverlay'),
-            createStatus: document.getElementById('createStatus'),
-            joinError: document.getElementById('joinError'),
-            toast: document.getElementById('toast')
-        };
-
-        function showToast(msg, duration = 3000) {
-            console.log('[Toast]', msg);
-            els.toast.textContent = msg;
-            els.toast.classList.add('show');
-            setTimeout(() => els.toast.classList.remove('show'), duration);
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+// 配置
+const CONFIG = {
+    SIGNALING_SERVER: 'https://simple-webrtc-signal.glitch.me', // 公共信令服务器
+    ICE_SERVERS: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        {
+            urls: 'turn:numb.viagenie.ca',
+            credential: 'muazkh',
+            username: 'webrtc@live.com'
         }
+    ],
+    CODE_LENGTH: 6
+};
 
-        function generateCode() {
-            return Math.floor(100000 + Math.random() * 900000).toString();
+// 全局变量
+let socket;
+let peerConnection;
+let localStream;
+let myCode;
+let peerCode;
+let isCaller = false;
+let isAudioEnabled = true;
+let isVideoEnabled = true;
+
+// DOM元素
+const elements = {
+    myCode: document.getElementById('myCode'),
+    peerCodeInput: document.getElementById('peerCode'),
+    connectBtn: document.getElementById('connectBtn'),
+    callBtn: document.getElementById('callBtn'),
+    hangupBtn: document.getElementById('hangupBtn'),
+    localVideo: document.getElementById('localVideo'),
+    remoteVideo: document.getElementById('remoteVideo'),
+    connectionStatus: document.getElementById('connectionStatus'),
+    cameraSelect: document.getElementById('cameraSelect'),
+    micSelect: document.getElementById('micSelect'),
+    refreshDevices: document.getElementById('refreshDevices'),
+    toggleAudio: document.getElementById('toggleAudio'),
+    toggleVideo: document.getElementById('toggleVideo')
+};
+
+// 初始化
+async function init() {
+    generateCode();
+    setupEventListeners();
+    await initMediaDevices();
+    connectSignalingServer();
+}
+
+// 生成随机验证码
+function generateCode() {
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < CONFIG.CODE_LENGTH; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    myCode = code;
+    elements.myCode.textContent = code;
+}
+
+// 连接信令服务器
+function connectSignalingServer() {
+    updateStatus('正在连接服务器...', 'connecting');
+    
+    socket = io(CONFIG.SIGNALING_SERVER, {
+        transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+        updateStatus('已连接到服务器', 'connected');
+        socket.emit('register', myCode);
+    });
+
+    socket.on('disconnect', () => {
+        updateStatus('服务器连接断开', 'error');
+    });
+
+    socket.on('peer_connected', (data) => {
+        updateStatus(`已连接到用户: ${data.peerCode}`, 'connected');
+        if (isCaller) {
+            createPeerConnection();
+            startCall();
         }
+    });
 
-        window.showCreatePage = async () => {
-            console.log('[Flow] 进入发起流程');
-            els.homePage.classList.remove('active');
-            els.createPage.classList.add('active');
+    socket.on('offer', (data) => {
+        handleOffer(data);
+    });
+
+    socket.on('answer', (data) => {
+        handleAnswer(data);
+    });
+
+    socket.on('candidate', (data) => {
+        handleCandidate(data);
+    });
+
+    socket.on('error', (error) => {
+        updateStatus(`错误: ${error}`, 'error');
+    });
+}
+
+// 创建PeerConnection
+function createPeerConnection() {
+    peerConnection = new RTCPeerConnection({
+        iceServers: CONFIG.ICE_SERVERS
+    });
+
+    // 添加本地流
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+    }
+
+    // ICE候选处理
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate && socket.connected) {
+            socket.emit('candidate', {
+                to: peerCode,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    // 远程流处理
+    peerConnection.ontrack = (event) => {
+        elements.remoteVideo.srcObject = event.streams[0];
+    };
+
+    // 连接状态变化
+    peerConnection.onconnectionstatechange = () => {
+        console.log('连接状态:', peerConnection.connectionState);
+        switch(peerConnection.connectionState) {
+            case 'connected':
+                updateStatus('通话已连接', 'connected');
+                break;
+            case 'disconnected':
+                updateStatus('连接断开', 'error');
+                break;
+            case 'failed':
+                updateStatus('连接失败', 'error');
+                break;
+        }
+    };
+}
+
+// 开始通话
+async function startCall() {
+    try {
+        const offer = await peerConnection.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true
+        });
+        
+        await peerConnection.setLocalDescription(offer);
+        
+        socket.emit('offer', {
+            to: peerCode,
+            offer: offer
+        });
+        
+        updateStatus('正在呼叫对方...', 'connecting');
+    } catch (error) {
+        console.error('创建offer失败:', error);
+        updateStatus('呼叫失败', 'error');
+    }
+}
+
+// 处理Offer
+async function handleOffer(data) {
+    if (!peerConnection) {
+        createPeerConnection();
+    }
+    
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+    
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    
+    socket.emit('answer', {
+        to: data.from,
+        answer: answer
+    });
+    
+    updateStatus('已接听通话', 'connected');
+    elements.callBtn.disabled = true;
+    elements.hangupBtn.disabled = false;
+}
+
+// 处理Answer
+async function handleAnswer(data) {
+    if (peerConnection) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        updateStatus('通话已连接', 'connected');
+        elements.callBtn.disabled = true;
+        elements.hangupBtn.disabled = false;
+    }
+}
+
+// 处理Candidate
+async function handleCandidate(data) {
+    if (peerConnection) {
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } catch (error) {
+            console.error('添加ICE候选失败:', error);
+        }
+    }
+}
+
+// 初始化媒体设备
+async function initMediaDevices() {
+    try {
+        await loadDeviceList();
+        
+        const constraints = {
+            audio: { deviceId: elements.micSelect.value ? { exact: elements.micSelect.value } : undefined },
+            video: { deviceId: elements.cameraSelect.value ? { exact: elements.cameraSelect.value } : undefined }
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        elements.localVideo.srcObject = localStream;
+        
+        updateStatus('摄像头和麦克风已就绪', 'connected');
+    } catch (error) {
+        console.error('获取媒体设备失败:', error);
+        updateStatus('无法访问摄像头/麦克风', 'error');
+    }
+}
+
+// 加载设备列表
+async function loadDeviceList() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        // 清空选项
+        elements.cameraSelect.innerHTML = '<option value="">选择摄像头</option>';
+        elements.micSelect.innerHTML = '<option value="">选择麦克风</option>';
+        
+        // 填充设备列表
+        devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `${device.kind} ${device.deviceId.slice(0, 5)}`;
             
-            const code = generateCode();
-            els.roomCode.textContent = code;
-            currentRoom = code;
+            if (device.kind === 'videoinput') {
+                elements.cameraSelect.appendChild(option.cloneNode(true));
+            } else if (device.kind === 'audioinput') {
+                elements.micSelect.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('获取设备列表失败:', error);
+    }
+}
+
+// 设置事件监听器
+function setupEventListeners() {
+    // 连接按钮
+    elements.connectBtn.addEventListener('click', () => {
+        peerCode = elements.peerCodeInput.value.trim().toUpperCase();
+        if (peerCode.length === CONFIG.CODE_LENGTH) {
+            updateStatus(`正在连接用户: ${peerCode}`, 'connecting');
             isCaller = true;
             
-            try {
-                console.log('[Media] 请求摄像头权限...');
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' }, 
-                    audio: true 
-                });
-                els.localPreview.srcObject = localStream;
-                els.waitingOverlay.style.display = 'none';
-                console.log('[Media] 摄像头已启动');
-                
-                await createRoom(code);
-            } catch (err) {
-                console.error('[Media] 错误:', err);
-                showToast('无法访问摄像头：' + err.message);
-                setTimeout(backToHome, 2000);
-            }
-        };
-
-        window.showJoinPage = () => {
-            console.log('[Flow] 进入加入页面');
-            els.homePage.classList.remove('active');
-            els.joinPage.classList.add('active');
-            document.getElementById('joinError').classList.add('hidden');
-            
-            setTimeout(() => {
-                const firstInput = document.querySelector('.code-input[data-index="0"]');
-                if(firstInput) {
-                    firstInput.focus();
-                    firstInput.value = '';
-                }
-            }, 100);
-        };
-
-        window.backToHome = () => {
-            console.log('[Flow] 返回主页，清理资源');
-            cleanup();
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            els.homePage.classList.add('active');
-        };
-
-        // 修复后的输入处理逻辑
-        window.handleInput = (input, index) => {
-            // 只允许数字
-            input.value = input.value.replace(/[^0-9]/g, '').slice(0, 1);
-            
-            if (input.value && index < 5) {
-                const next = document.querySelector(`.code-input[data-index="${index + 1}"]`);
-                if (next) {
-                    next.focus();
-                    next.value = ''; // 清空下一个，避免移动端缓存问题
-                }
-            }
-            
-            // 自动提交（当填完6位时）
-            if (index === 5 && input.value) {
-                const code = getInputCode();
-                if (code.length === 6) {
-                    setTimeout(joinRoom, 300); // 短暂延迟确保状态更新
-                }
-            }
-        };
-
-        window.handleKeyDown = (e, index) => {
-            if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                const prev = document.querySelector(`.code-input[data-index="${index - 1}"]`);
-                if (prev) {
-                    prev.focus();
-                    prev.value = '';
-                }
-            }
-        };
-
-        function getInputCode() {
-            let code = '';
-            document.querySelectorAll('.code-input').forEach(input => {
-                code += input.value;
-            });
-            console.log('[Input] 当前输入:', code);
-            return code;
-        }
-
-        // 创建房间（发起方）
-        async function createRoom(roomCode) {
-            console.log('[Firebase] 创建房间:', roomCode);
-            roomRef = window.dbRef(window.db, 'rooms/' + roomCode);
-            
-            try {
-                // 检查房间是否存在
-                const snapshot = await window.dbGet(roomRef);
-                if (snapshot.exists()) {
-                    console.log('[Firebase] 房间已存在，重新生成');
-                    const newCode = generateCode();
-                    els.roomCode.textContent = newCode;
-                    currentRoom = newCode;
-                    return createRoom(newCode);
-                }
-                
-                // 创建房间数据
-                await window.dbSet(roomRef, {
-                    created: Date.now(),
-                    status: 'waiting',
-                    offer: null,
-                    answer: null,
-                    callerId: 'caller_' + Date.now()
-                });
-                
-                console.log('[Firebase] 房间创建成功，开始监听...');
-                
-                // 设置断开清理（重要：防止意外关闭残留数据）
-                const disconnectRef = window.dbOnDisconnect(roomRef);
-                await disconnectRef.remove();
-                
-                // 监听对方加入 - 使用onValue持续监听
-                const unsubscribe = window.dbOnValue(roomRef, async (snapshot) => {
-                    const data = snapshot.val();
-                    console.log('[Firebase] 数据更新:', data);
-                    
-                    if (!data || !pc) {
-                        // 如果对方加入但pc未创建（防止重复处理）
-                        if (data && data.status === 'joining' && !pc) {
-                            console.log('[WebRTC] 检测到加入者，开始创建Offer');
-                            els.createStatus.textContent = '对方已加入，建立连接...';
-                            await handleOfferProcess(data);
-                        }
-                    }
-                });
-                
-                unsubscribeList.push(unsubscribe);
-                
-                // 超时提示（2分钟后）
-                setTimeout(() => {
-                    if (!pc) {
-                        els.createStatus.textContent = '等待超时，请重新发起';
-                        els.createStatus.classList.add('error');
-                    }
-                }, 120000);
-                
-            } catch (err) {
-                console.error('[Firebase] 创建房间失败:', err);
-                showToast('创建房间失败：' + err.message);
-            }
-        }
-
-        // 加入房间（接收方）- 修复后的逻辑
-        window.joinRoom = async () => {
-            const code = getInputCode();
-            console.log('[Flow] 尝试加入房间:', code);
-            
-            if (code.length !== 6) {
-                showToast('请输入完整的6位验证码');
-                return;
-            }
-            
-            currentRoom = code;
-            isCaller = false;
-            
-            const btn = document.getElementById('joinBtn');
-            btn.disabled = true;
-            btn.textContent = '正在连接...';
-            
-            try {
-                roomRef = window.dbRef(window.db, 'rooms/' + code);
-                console.log('[Firebase] 查询房间...');
-                
-                const snapshot = await window.dbGet(roomRef);
-                console.log('[Firebase] 房间数据:', snapshot.val());
-                
-                if (!snapshot.exists()) {
-                    throw new Error('房间不存在或已过期');
-                }
-                
-                const data = snapshot.val();
-                if (data.status !== 'waiting') {
-                    throw new Error('该房间正在通话中或已结束');
-                }
-                
-                if (!data.offer) {
-                    throw new Error('房间尚未准备就绪，请稍后再试');
-                }
-                
-                // 获取媒体权限
-                console.log('[Media] 请求权限...');
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' }, 
-                    audio: true 
-                });
-                console.log('[Media] 权限获取成功');
-                
-                // 更新状态为加入中 - 这会触发发起方的onValue监听
-                console.log('[Firebase] 更新状态为 joining...');
-                await window.dbSet(window.dbChild(roomRef, 'status'), 'joining');
-                await window.dbSet(window.dbChild(roomRef, 'joinerId'), 'joiner_' + Date.now());
-                
-                // 开始Answer流程
-                console.log('[WebRTC] 开始Answer流程...');
-                await handleAnswerProcess(data);
-                
-            } catch (err) {
-                console.error('[Join] 错误:', err);
-                els.joinError.textContent = err.message;
-                els.joinError.classList.remove('hidden');
-                showToast('加入失败：' + err.message);
-                
-                btn.disabled = false;
-                btn.textContent = '加入通话';
-            }
-        };
-
-        // 发起方处理流程（创建Offer）
-        async function handleOfferProcess(roomData) {
-            console.log('[WebRTC] 创建PeerConnection');
-            pc = new RTCPeerConnection(rtcConfig);
-            
-            localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream);
+            socket.emit('connect_to_peer', {
+                from: myCode,
+                to: peerCode
             });
             
-            // 收集ICE候选
-            pc.onicecandidate = async (event) => {
-                if (event.candidate) {
-                    console.log('[ICE] 收集到候选');
-                    const candidatesRef = window.dbChild(roomRef, 'offerCandidates');
-                    await window.dbPush(candidatesRef, event.candidate.toJSON());
-                }
-            };
-            
-            pc.ontrack = (event) => {
-                console.log('[WebRTC] 收到远程流');
-                els.remoteVideo.srcObject = event.streams[0];
-                enterCallUI();
-            };
-            
-            pc.onconnectionstatechange = () => {
-                console.log('[WebRTC] 连接状态:', pc.connectionState);
-                if (pc.connectionState === 'connected') {
-                    els.createStatus.textContent = '已连接';
-                    window.dbSet(window.dbChild(roomRef, 'status'), 'connected');
-                }
-            };
-            
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                console.log('[Firebase] 保存Offer...');
-                
-                await window.dbSet(window.dbChild(roomRef, 'offer'), {
-                    type: offer.type,
-                    sdp: offer.sdp,
-                    timestamp: Date.now()
-                });
-                
-                // 监听Answer
-                const unsubAnswer = window.dbOnValue(window.dbChild(roomRef, 'answer'), async (snapshot) => {
-                    const answer = snapshot.val();
-                    if (answer && pc.signalingState !== 'closed' && pc.signalingState !== 'stable') {
-                        console.log('[WebRTC] 收到Answer，设置远程描述');
-                        await pc.setRemoteDescription(new RTCSessionDescription(answer));
-                    }
-                });
-                unsubscribeList.push(unsubAnswer);
-                
-                // 监听对方ICE候选
-                const unsubIce = window.dbOnValue(window.dbChild(roomRef, 'answerCandidates'), (snapshot) => {
-                    snapshot.forEach((child) => {
-                        if (pc.signalingState !== 'closed') {
-                            pc.addIceCandidate(new RTCIceCandidate(child.val()));
-                        }
-                    });
-                });
-                unsubscribeList.push(unsubIce);
-                
-            } catch (err) {
-                console.error('[Offer] 错误:', err);
-                showToast('建立连接失败');
-            }
+            elements.callBtn.disabled = false;
+        } else {
+            alert('请输入有效的6位验证码');
         }
+    });
 
-        // 接收方处理流程（创建Answer）
-        async function handleAnswerProcess(roomData) {
-            console.log('[WebRTC] 创建PeerConnection (Answer)');
-            pc = new RTCPeerConnection(rtcConfig);
-            
-            localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream);
-            });
-            
-            pc.onicecandidate = async (event) => {
-                if (event.candidate) {
-                    const candidatesRef = window.dbChild(roomRef, 'answerCandidates');
-                    await window.dbPush(candidatesRef, event.candidate.toJSON());
-                }
-            };
-            
-            pc.ontrack = (event) => {
-                console.log('[WebRTC] 收到远程流');
-                els.remoteVideo.srcObject = event.streams[0];
-                enterCallUI();
-            };
-            
-            try {
-                console.log('[WebRTC] 设置远程描述 (Offer)');
-                await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
-                
-                console.log('[WebRTC] 创建Answer');
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                
-                console.log('[Firebase] 保存Answer');
-                await window.dbSet(window.dbChild(roomRef, 'answer'), {
-                    type: answer.type,
-                    sdp: answer.sdp,
-                    timestamp: Date.now()
-                });
-                
-                // 监听发起方ICE候选
-                const unsubIce = window.dbOnValue(window.dbChild(roomRef, 'offerCandidates'), (snapshot) => {
-                    snapshot.forEach((child) => {
-                        if (pc.signalingState !== 'closed') {
-                            pc.addIceCandidate(new RTCIceCandidate(child.val()));
-                        }
-                    });
-                });
-                unsubscribeList.push(unsubIce);
-                
-                // 监听连接状态
-                pc.onconnectionstatechange = () => {
-                    console.log('[WebRTC] 连接状态:', pc.connectionState);
-                    if (pc.connectionState === 'connected') {
-                        window.dbSet(window.dbChild(roomRef, 'status'), 'connected');
-                    } else if (pc.connectionState === 'failed') {
-                        showToast('连接失败，请重试');
-                    }
-                };
-                
-            } catch (err) {
-                console.error('[Answer] 错误:', err);
-                throw err;
-            }
+    // 通话按钮
+    elements.callBtn.addEventListener('click', () => {
+        if (peerCode && localStream) {
+            createPeerConnection();
+            startCall();
         }
+    });
 
-        function enterCallUI() {
-            console.log('[UI] 进入通话界面');
-            els.localVideo.srcObject = localStream;
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            els.callPage.classList.add('active');
-            
-            callSeconds = 0;
-            callTimer = setInterval(() => {
-                callSeconds++;
-                const mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
-                const secs = (callSeconds % 60).toString().padStart(2, '0');
-                document.getElementById('callTimer').textContent = `${mins}:${secs}`;
-            }, 1000);
-            
-            showToast('连接成功！');
-        }
+    // 挂断按钮
+    elements.hangupBtn.addEventListener('click', hangup);
 
-        window.toggleMute = () => {
+    // 刷新设备列表
+    elements.refreshDevices.addEventListener('click', loadDeviceList);
+
+    // 切换音频
+    elements.toggleAudio.addEventListener('click', () => {
+        if (localStream) {
             const audioTrack = localStream.getAudioTracks()[0];
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
-                const btn = document.getElementById('muteBtn');
-                btn.classList.toggle('active', !audioTrack.enabled);
-                btn.querySelector('.icon').textContent = audioTrack.enabled ? '🎤' : '🚫';
+                isAudioEnabled = audioTrack.enabled;
+                elements.toggleAudio.innerHTML = `
+                    <i class="fas fa-microphone${!isAudioEnabled ? '-slash' : ''}"></i>
+                    ${isAudioEnabled ? '静音' : '取消静音'}
+                `;
             }
-        };
-
-        window.endCall = () => {
-            cleanup();
-            backToHome();
-            showToast('通话已结束');
-        };
-
-        window.cancelCall = () => {
-            cleanup();
-            backToHome();
-        };
-
-        window.copyCode = () => {
-            const code = els.roomCode.textContent;
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(code).then(() => {
-                    showToast('验证码已复制，请发给对方');
-                });
-            } else {
-                // 降级方案
-                const input = document.createElement('input');
-                input.value = code;
-                document.body.appendChild(input);
-                input.select();
-                document.execCommand('copy');
-                document.body.removeChild(input);
-                showToast('验证码已复制，请发给对方');
-            }
-        };
-
-        function cleanup() {
-            console.log('[Cleanup] 清理资源');
-            
-            if (callTimer) {
-                clearInterval(callTimer);
-                callTimer = null;
-            }
-            
-            // 取消所有Firebase监听
-            unsubscribeList.forEach(unsub => unsub());
-            unsubscribeList = [];
-            
-            if (pc) {
-                pc.close();
-                pc = null;
-            }
-            
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
-            // 清理房间数据
-            if (currentRoom && roomRef) {
-                if (isCaller) {
-                    window.dbRemove(roomRef);
-                } else {
-                    // 加入方只更新状态，不删除房间
-                    window.dbSet(window.dbChild(roomRef, 'status'), 'ended');
-                }
-            }
-            
-            currentRoom = null;
-            isCaller = false;
-            roomRef = null;
-            
-            // 重置UI
-            els.roomCode.textContent = '------';
-            els.localPreview.srcObject = null;
-            els.remoteVideo.srcObject = null;
-            document.querySelectorAll('.code-input').forEach(input => input.value = '');
-            const joinBtn = document.getElementById('joinBtn');
-            if(joinBtn) {
-                joinBtn.disabled = false;
-                joinBtn.textContent = '加入通话';
-            }
-            els.createStatus.textContent = '等待对方加入...';
-            els.createStatus.classList.remove('error');
-            els.joinError.classList.add('hidden');
         }
+    });
 
-        window.onbeforeunload = cleanup;
+    // 切换视频
+    elements.toggleVideo.addEventListener('click', () => {
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                isVideoEnabled = videoTrack.enabled;
+                elements.toggleVideo.innerHTML = `
+                    <i class="fas fa-video${!isVideoEnabled ? '-slash' : ''}"></i>
+                    ${isVideoEnabled ? '关闭视频' : '开启视频'}
+                `;
+            }
+        }
+    });
+
+    // 设备切换
+    elements.cameraSelect.addEventListener('change', async () => {
+        await restartMediaStream();
+    });
+
+    elements.micSelect.addEventListener('change', async () => {
+        await restartMediaStream();
+    });
+
+    // 输入框回车连接
+    elements.peerCodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            elements.connectBtn.click();
+        }
+    });
+}
+
+// 重新启动媒体流
+async function restartMediaStream() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    
+    await initMediaDevices();
+    
+    // 如果正在通话中，需要重新添加轨道
+    if (peerConnection && peerConnection.signalingState !== 'closed') {
+        localStream.getTracks().forEach(track => {
+            const sender = peerConnection.getSenders().find(s => 
+                s.track && s.track.kind === track.kind
+            );
+            if (sender) {
+                sender.replaceTrack(track);
+            } else {
+                peerConnection.addTrack(track, localStream);
+            }
+        });
+    }
+}
+
+// 挂断通话
+function hangup() {
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    if (socket && peerCode) {
+        socket.emit('disconnect_peer', { to: peerCode });
+    }
+    
+    elements.remoteVideo.srcObject = null;
+    elements.callBtn.disabled = true;
+    elements.hangupBtn.disabled = true;
+    peerCode = null;
+    isCaller = false;
+    
+    updateStatus('通话已结束', 'connected');
+}
+
+// 更新状态显示
+function updateStatus(message, type = '') {
+    elements.connectionStatus.textContent = message;
+    elements.connectionStatus.className = 'status';
+    if (type) {
+        elements.connectionStatus.classList.add(`status-${type}`);
+    }
+}
+
+// 页面加载完成
+window.addEventListener('load', init);
+
+// 页面关闭前清理
+window.addEventListener('beforeunload', () => {
+    hangup();
+    if (socket) {
+        socket.disconnect();
+    }
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+});
         
-        // 调试：在控制台暴露函数
-        console.log('[System] 视频通话系统已加载');
-        console.log('[System] 如Firebase连接失败，请检查网络或更换配置');
-    </script>
-</body>
-</html>
